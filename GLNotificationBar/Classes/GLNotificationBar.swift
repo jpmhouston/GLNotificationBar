@@ -250,7 +250,7 @@ open class GLNotificationBar: NSObject {
         if header.characters.count == 0 {
             notificationBar.body.text = body
         }else{
-            let attributeString = NSMutableAttributedString(string: String("\(header)\n\(body)"))
+            let attributeString = NSMutableAttributedString(string: String("\(header!)\n\(body!)"))
             attributeString.addAttributes([NSFontAttributeName:UIFont.boldSystemFont(ofSize: 15)], range: NSRange(location: 0, length: header.characters.count))
             notificationBar.body.attributedText = attributeString
         }
