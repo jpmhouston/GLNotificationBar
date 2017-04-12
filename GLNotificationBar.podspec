@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'GLNotificationBar'
-  s.version          = '1.3.3'
+  s.version          = '1.3.4'
   s.summary          = 'GLNotificationBar lets user to handle push  notification when app is active.'
 
 # This description is used to generate tags and improve search results.
@@ -25,7 +25,7 @@ Pod::Spec.new do |s|
   # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'gokul' => 'gokulece26@gmail.com' }
-  s.source           = { :git => 'https://github.com/gokulgovind/GLNotificationBar.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/rsimenok/GLNotificationBar.git', :tag => s.version.to_s }
   s.social_media_url = 'https://twitter.com/gokulgovind_'
 
   s.ios.deployment_target = '8.0'
