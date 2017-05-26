@@ -257,7 +257,7 @@ open class GLNotificationBar: NSObject {
 
         var infoDic:Dictionary = Bundle.main.infoDictionary!
         appName = infoDic["CFBundleName"] as? String
-        notificationBar.header.text = appName
+        notificationBar.header.text = appName.uppercased()
         
         if infoDic["CFBundleIcons"] != nil {
             infoDic = infoDic["CFBundleIcons"] as! Dictionary
