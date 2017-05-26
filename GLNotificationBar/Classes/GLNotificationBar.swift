@@ -210,32 +210,41 @@ open class GLNotificationBar: NSObject {
     
     
     fileprivate func setUpNotificationBar(_ header:String!, body:String!, notificationStyle:GLNotificationStyle) {
-        
         for subView in appKeyWindow?.subviews ?? [] {     //To clear old notification from queue
-            if subView is CustomView {
+            if subView is CustomView || subView is RNNotificationView {
                 subView.removeFromSuperview()
             }
         }
         
+        if ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 10, minorVersion: 0, patchVersion: 0)) {
+            setUpiOS10NotificationBar(header, body, notificationStyle)
+        } else {
+            setUpiOS9StyleNotificationBar(body)
+        }
+    }
+    
+    fileprivate func setUpiOS10NotificationBar(_ header:String!, _ body:String!, _ notificationStyle:GLNotificationStyle) {
         notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: appKeyWindowSize.width, height: BAR_HEIGHT))
         notificationBar.translatesAutoresizingMaskIntoConstraints = false
-
+        
         switch notificationStyle {
         case .detailedBanner:
             notificationBar.notificationStyleIndicator.isHidden = false
             showNotificationInDetail = true
-            break
         case .simpleBanner:
             notificationBar.notificationStyleIndicator.isHidden = true
             showNotificationInDetail = false
-            break
         }
         
         if header.characters.count == 0 {
             notificationBar.body.text = body
         }else{
             let attributeString = NSMutableAttributedString(string: String("\(header!)\n\(body!)"))
-            attributeString.addAttributes([NSFontAttributeName:UIFont.boldSystemFont(ofSize: 15)], range: NSRange(location: 0, length: header.characters.count))
+            let normalFont = notificationBar.body.font!
+            let headerFont = UIFont.boldSystemFont(ofSize: normalFont.pointSize)
+            let headerLength = (header as NSString).length
+            attributeString.addAttributes([NSFontAttributeName:headerFont], range: NSRange(location: 0, length: headerLength))
+            attributeString.addAttributes([NSFontAttributeName:normalFont], range: NSRange(location: headerLength, length: (attributeString.string as NSString).length - headerLength))
             notificationBar.body.attributedText = attributeString
         }
 
@@ -285,8 +294,29 @@ open class GLNotificationBar: NSObject {
         constraints += vertical
         
         NSLayoutConstraint.activate(constraints)
-        
     }
+    
+    fileprivate func setUpiOS9StyleNotificationBar(_ body:String!) { // doesn't support a header string
+        
+        let legacyView = RNNotificationView()
+        
+        var infoDic:Dictionary = Bundle.main.infoDictionary!
+        appName = infoDic["CFBundleName"] as? String
+        var appIcon: UIImage?
+        
+        if infoDic["CFBundleIcons"] != nil {
+            infoDic = infoDic["CFBundleIcons"] as! Dictionary
+            infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
+            appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
+            appIcon = UIImage(named: appIconName)
+        } else {
+            appIconName = ""
+            print("Oops... no app icon found")
+        }
+        
+        legacyView.show(withImage: appIcon, title: appName, message: body, onTap: { messageDidSelect(true) })
+    }
+    
 }
 
 /**
