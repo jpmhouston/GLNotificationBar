@@ -8,30 +8,6 @@
 
 import UIKit
 import AVFoundation
-// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
-// Consider refactoring the code to use the non-optional operators.
-fileprivate func < <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
-  switch (lhs, rhs) {
-  case let (l?, r?):
-    return l < r
-  case (nil, _?):
-    return true
-  default:
-    return false
-  }
-}
-
-// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
-// Consider refactoring the code to use the non-optional operators.
-fileprivate func > <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
-  switch (lhs, rhs) {
-  case let (l?, r?):
-    return l > r
-  default:
-    return rhs < lhs
-  }
-}
-
 
 /**
  Notification action types.
@@ -82,8 +58,16 @@ let BAR_HEIGHT:CGFloat = 100
 var SHOW_TIME:Double = 5
 
 
-let APP_DELEGATE = UIApplication.shared
-let frameWidth:CGFloat! = UIApplication.shared.keyWindow?.bounds.width
+var appKeyWindow: UIWindow? {
+    return UIApplication.shared.keyWindow
+}
+var appKeyWindowSize: CGSize {
+    if let window = UIApplication.shared.keyWindow {
+        return window.frame.size
+    } else {
+        return UIScreen.main.bounds.size
+    }
+}
 
 var appIconName:String!
 var appName:String!
@@ -130,7 +114,7 @@ open class GLNotificationBar: NSObject {
         
         actionArray = [GLNotifyAction]()
         messageDidSelect = handler
-        if ((APP_DELEGATE.keyWindow?.subviews) == nil) {
+        if ((appKeyWindow?.subviews) == nil) {
             let time = DispatchTime.now() + Double(Int64(5.0 * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC)
             DispatchQueue.main.asyncAfter(deadline: time, execute: {
                 self.setUpNotificationBar(title, body: message , notificationStyle:preferredStyle)
@@ -219,7 +203,7 @@ open class GLNotificationBar: NSObject {
                 notificationBar.frame.origin = CGPoint(x: 0, y: -BAR_HEIGHT)
                 }, completion: { (yes) in
                     notificationBar.removeFromSuperview()
-                    APP_DELEGATE.keyWindow?.windowLevel = 0.0
+                    appKeyWindow?.windowLevel = 0.0
             })
         }
     }
@@ -227,13 +211,13 @@ open class GLNotificationBar: NSObject {
     
     fileprivate func setUpNotificationBar(_ header:String!, body:String!, notificationStyle:GLNotificationStyle) {
         
-        for subView in (APP_DELEGATE.keyWindow?.subviews)! {     //To clear old notification from queue
+        for subView in appKeyWindow?.subviews ?? [] {     //To clear old notification from queue
             if subView is CustomView {
                 subView.removeFromSuperview()
             }
         }
         
-        notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: frameWidth!, height: BAR_HEIGHT))
+        notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: appKeyWindowSize.width, height: BAR_HEIGHT))
         notificationBar.translatesAutoresizingMaskIntoConstraints = false
 
         switch notificationStyle {
@@ -241,7 +225,7 @@ open class GLNotificationBar: NSObject {
             notificationBar.notificationStyleIndicator.isHidden = false
             showNotificationInDetail = true
             break
-        default:
+        case .simpleBanner:
             notificationBar.notificationStyleIndicator.isHidden = true
             showNotificationInDetail = false
             break
@@ -285,12 +269,12 @@ open class GLNotificationBar: NSObject {
         notificationBar.addGestureRecognizer(didSelectMessage)
         
         UIView.animate(withDuration: 0.5, delay: 0.0, options: .curveEaseOut, animations: { 
-            let frame = CGRect(x: 0, y: 0, width: frameWidth, height: BAR_HEIGHT)
+            let frame = CGRect(x: 0, y: 0, width: appKeyWindowSize.width, height: BAR_HEIGHT)
             notificationBar.frame = frame
             }, completion: nil)
         
-        APP_DELEGATE.keyWindow?.windowLevel = (UIWindowLevelStatusBar + 1)
-        APP_DELEGATE.keyWindow!.addSubview(notificationBar)
+        appKeyWindow?.windowLevel = (UIWindowLevelStatusBar + 1)
+        appKeyWindow?.addSubview(notificationBar)
         
         var constraints = [NSLayoutConstraint]()
         
@@ -384,7 +368,7 @@ class CustomView : UIView {
         content.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         self.addSubview(content)
         
-        NotificationCenter.default.addObserver(self, selector: #selector(CustomView.keyboardWillShown(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(CustomView.keyboardWillShow(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(CustomView.keyboardWillHide(_:)), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
         
     }
@@ -440,7 +424,7 @@ class CustomView : UIView {
         //Message Title
         let title = UILabel()
         title.translatesAutoresizingMaskIntoConstraints = false
-        title.text = appName
+        title.text = appName.uppercased()
         title.backgroundColor = UIColor.clear
         title.textColor = UIColor.gray
         title.font = UIFont.systemFont(ofSize: 14)
@@ -498,7 +482,7 @@ class CustomView : UIView {
         detailedbanner.addSubview(closeButton)
         
         
-        UIApplication.shared.keyWindow!.addSubview(backgroudView)
+        appKeyWindow?.addSubview(backgroudView)
         
         toolBar.translatesAutoresizingMaskIntoConstraints = false
         toolBar.isHidden = true
@@ -540,8 +524,8 @@ class CustomView : UIView {
         var height = "0"
         let tempLabel = UILabel()
         tempLabel.text = notificationMessage.text!
-        let test = CGFloat(actionArray.count * 50) + tempLabel.heightToFit(notificationMessage.text!, width: (APP_DELEGATE.keyWindow?.frame.size.width)!)
-        if test > APP_DELEGATE.keyWindow!.frame.size.height - 50 {
+        let test = CGFloat(actionArray.count * 50) + tempLabel.heightToFit(notificationMessage.text!, width: appKeyWindowSize.width)
+        if test > appKeyWindowSize.height - 50 {
             tableView.isScrollEnabled = actionArray.count > 4 ? true : false
             notificationMessage.isScrollEnabled = true
             height = actionArray.count > 4 ? "200" : String(actionArray.count * 50)
@@ -565,7 +549,7 @@ class CustomView : UIView {
     
     func addSeprator(_ toObject:AnyObject) -> UIView{
         let frame = toObject.frame
-        let seprator = UIView(frame: CGRect(x: 0,y: (frame?.height)! + 3, width: (APP_DELEGATE.keyWindow?.frame.size.width)! - 20,height: 0.5))
+        let seprator = UIView(frame: CGRect(x: 0,y: (frame?.height)! + 3, width: appKeyWindowSize.width - 20,height: 0.5))
         seprator.backgroundColor = UIColor.gray
         seprator.alpha = 0.6
         return seprator
@@ -626,10 +610,10 @@ class CustomView : UIView {
         
         let tempLabel = UILabel()
         tempLabel.text = notificationMessage.text!
-        let expectedContentheight = CGFloat(actionArray.count * 50) + tempLabel.heightToFit(tempLabel.text!, width: (APP_DELEGATE.keyWindow?.frame.size.width)!)
+        let expectedContentheight = CGFloat(actionArray.count * 50) + tempLabel.heightToFit(tempLabel.text!, width: appKeyWindowSize.width)
         var messageHeight = ""
-        if expectedContentheight > APP_DELEGATE.keyWindow!.frame.size.height - 50 {
-            messageHeight = String(describing: APP_DELEGATE.keyWindow!.frame.size.height - CGFloat(actionArray.count < 4 ? actionArray.count * 50 : 200))
+        if expectedContentheight > appKeyWindowSize.height - 50 {
+            messageHeight = String(describing: appKeyWindowSize.height - CGFloat(actionArray.count < 4 ? actionArray.count * 50 : 200))
         }
         if messageHeight.characters.count > 0 {
             let verticalConstraint = NSLayoutConstraint.constraints(withVisualFormat: "V:|-15-[header_Label(20)]-[separator(1)]-[container_Label(h@750)]-(>=5)-|", options: [], metrics: ["h":messageHeight], views: viewDic)
@@ -698,20 +682,20 @@ class CustomView : UIView {
             
             gestureRecognizer.setTranslation(CGPoint(x: 0,y: 0), in: self)
             
-            if gestureRecognizer.view?.frame.origin.y  > (gestureRecognizer.view?.frame.size.height)! {
+            if let v = gestureRecognizer.view, v.frame.origin.y > v.frame.size.height {
                 self.removeFromSuperview()
                 setUpDetailedNotificationBar(header.text, body: body.text, action: [])
-                return
+                break
             }
             
             break
         case .ended:
             
-            if gestureRecognizer.view?.frame.origin.y  < -(self.visualEffectView.frame.origin.y) {
-                APP_DELEGATE.keyWindow?.windowLevel = 0.0
+            if let v = gestureRecognizer.view, v.frame.origin.y  < -(self.visualEffectView.frame.origin.y) {
+                appKeyWindow?.windowLevel = 0.0
                 actionArray = [GLNotifyAction]()  //Clear cached action before leaving
                 self.removeFromSuperview()
-                return
+                break
             }
             
             UIView.animate(withDuration: 0.5, animations: {
@@ -736,7 +720,7 @@ class CustomView : UIView {
         
         switch panGesture.state {
         case .changed, .began:
-            let orientation = APP_DELEGATE.statusBarOrientation
+            let orientation = UIApplication.shared.statusBarOrientation
             
             switch orientation {
             case .portrait:
@@ -947,10 +931,10 @@ class CustomView : UIView {
     @IBAction func closeMessage(_ sender: UIButton?) {
         actionArray = [GLNotifyAction]()  //Clear cached action before leaving
         textField.resignFirstResponder()
-        APP_DELEGATE.keyWindow?.windowLevel = 0.0
+        appKeyWindow?.windowLevel = 0.0
 
         UIView.animate(withDuration: 0.5, animations: {
-            self.mainView.frame.origin = CGPoint(x: 0, y: (APP_DELEGATE.keyWindow?.frame.size.height)!)
+            self.mainView.frame.origin = CGPoint(x: 0, y: appKeyWindowSize.height)
             }, completion: { (ok) in
                 UIView.animate(withDuration: 2.0, delay: 0.5, options: [], animations: {
                     self.backgroudView.removeFromSuperview()
@@ -960,7 +944,7 @@ class CustomView : UIView {
     
     
     //MARK: Notification center:
-    func keyboardWillShown(_ notification: Notification) {
+    @objc func keyboardWillShow(_ notification: Notification) {
         let info = notification.userInfo!
         let keyboardFrame: CGRect = (info[UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue
         
@@ -973,7 +957,7 @@ class CustomView : UIView {
         })
     }
     
-    func keyboardWillHide(_ notification: Notification) {
+    @objc func keyboardWillHide(_ notification: Notification) {
         let info = notification.userInfo!
         let keyboardFrame: CGRect = (info[UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue
         
@@ -1056,7 +1040,7 @@ extension UITableViewCell{
         border.borderColor = UIColor.gray.cgColor
         border.frame = CGRect(x: 0, y: 49,
                               width: 0, height: 2)
-        border.frame.size.width = (APP_DELEGATE.keyWindow?.frame.size.height > APP_DELEGATE.keyWindow?.frame.size.width ? APP_DELEGATE.keyWindow?.frame.size.height : APP_DELEGATE.keyWindow?.frame.size.width)!
+        border.frame.size.width = appKeyWindowSize.height > appKeyWindowSize.width ? appKeyWindowSize.height : appKeyWindowSize.width
         
         border.borderWidth = 0.75
         self.layer.addSublayer(border)
@@ -1080,7 +1064,7 @@ extension UIColor {
 
 extension UILabel {
     func heightToFit(_ string:String,width:CGFloat) -> CGFloat{
-        let attributes = [NSFontAttributeName : font]
+        let attributes = [NSFontAttributeName : font!]
         numberOfLines = 0
         lineBreakMode = NSLineBreakMode.byWordWrapping
         let rect = string.boundingRect(with: CGSize(width: width, height: CGFloat.greatestFiniteMagnitude), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes: attributes, context: nil)
@@ -1089,7 +1073,7 @@ extension UILabel {
     }
     
     func resizeHeightToFit() {
-        let attributes = [NSFontAttributeName : font]
+        let attributes = [NSFontAttributeName : font!]
         numberOfLines = 0
         lineBreakMode = NSLineBreakMode.byWordWrapping
         let rect = text!.boundingRect(with: CGSize(width: frame.size.width, height: CGFloat.greatestFiniteMagnitude), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes: attributes, context: nil)
