@@ -11,7 +11,7 @@
     <objects>
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="CustomView" customModule="GLNotificationBar" customModuleProvider="target">
             <connections>
-                <outlet property="appIcon" destination="dK5-Gy-uVq" id="U6A-0Q-LKi"/>
+                <outlet property="appIconView" destination="dK5-Gy-uVq" id="S4b-3Y-RKB"/>
                 <outlet property="body" destination="YG9-G5-ayn" id="TXx-oP-dlQ"/>
                 <outlet property="header" destination="3Ac-00-GtJ" id="Si9-Ut-T1r"/>
                 <outlet property="notificationStyleIndicator" destination="vuf-4T-NEn" id="J0u-7E-aRJ"/>

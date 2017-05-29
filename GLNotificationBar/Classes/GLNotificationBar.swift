@@ -38,6 +38,7 @@ import AVFoundation
 @objc public enum GLNotificationStyle:Int {
     ///SimpleBanner: Apply the SimpleBanner style that displays notification as simple banner,it can't open in detail by swiping down.
     case simpleBanner = 0
+    case simpleBannerTitleForAppname // passed-in title shown in place of appname
     ///DetailedBanner: Apply a style that opens message in detail with `GLNotifyAction` if added.
     case detailedBanner
 }
@@ -69,7 +70,7 @@ var appKeyWindowSize: CGSize {
     }
 }
 
-var appIconName:String!
+var appIcon:UIImage!
 var appName:String!
 var showNotificationInDetail = true
 var notificationBar:CustomView!
@@ -109,7 +110,7 @@ open class GLNotificationBar: NSObject {
      - Returns: A inilized GLNotificationBar object.
      */
     
-    @objc public init(title:String!, message :String!, icon: UIImage? = nil, preferredStyle:GLNotificationStyle, handler: ((Bool) -> Void)?) {
+    @objc public init(title:String?, message :String?, icon: UIImage? = nil, preferredStyle:GLNotificationStyle, handler: ((Bool) -> Void)?) {
         super.init()
         
         actionArray = [GLNotifyAction]()
@@ -209,21 +210,42 @@ open class GLNotificationBar: NSObject {
     }
     
     
-    fileprivate func setUpNotificationBar(_ header:String!, body:String!, icon: UIImage? = nil, notificationStyle:GLNotificationStyle) {
+    fileprivate func setUpNotificationBar(_ header:String?, body:String?, icon: UIImage? = nil, notificationStyle:GLNotificationStyle) {
         for subView in appKeyWindow?.subviews ?? [] {     //To clear old notification from queue
             if subView is CustomView || subView is RNNotificationView {
                 subView.removeFromSuperview()
             }
         }
         
+        var infoDic:Dictionary = Bundle.main.infoDictionary!
+        var headerTitle = header
+        if notificationStyle == .simpleBannerTitleForAppname && header != nil && header!.characters.count > 0 {
+            appName = header!
+            headerTitle = nil // show the title where the appname goes, so don't also use the title as the body header
+        } else {
+            appName = (infoDic["CFBundleName"] as? String)?.uppercased()
+        }
+        
+        if let icon = icon {
+            appIcon = icon
+        } else if infoDic["CFBundleIcons"] != nil {
+            infoDic = infoDic["CFBundleIcons"] as! Dictionary
+            infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
+            let appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
+            appIcon = UIImage(named: appIconName)
+        } else {
+            appIcon = nil
+            print("Oops... no app icon found")
+        }
+        
         if ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 10, minorVersion: 0, patchVersion: 0)) {
-            setUpiOS10NotificationBar(header, body, notificationStyle)
+            setUpiOS10NotificationBar(headerTitle, body, notificationStyle)
         } else {
             setUpiOS9NotificationBar(body)
         }
     }
     
-    fileprivate func setUpiOS10NotificationBar(_ header:String!, _ body:String!, icon: UIImage? = nil, _ notificationStyle:GLNotificationStyle) {
+    fileprivate func setUpiOS10NotificationBar(_ header:String?, _ body:String?, icon: UIImage? = nil, _ notificationStyle:GLNotificationStyle) {
         notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: appKeyWindowSize.width, height: BAR_HEIGHT))
         notificationBar.translatesAutoresizingMaskIntoConstraints = false
         
@@ -231,49 +253,34 @@ open class GLNotificationBar: NSObject {
         case .detailedBanner:
             notificationBar.notificationStyleIndicator.isHidden = false
             showNotificationInDetail = true
-        case .simpleBanner:
+        default:
             notificationBar.notificationStyleIndicator.isHidden = true
             showNotificationInDetail = false
         }
         
-        if header.characters.count == 0 {
+        if header == nil || header!.characters.count == 0 {
             notificationBar.body.text = body
-        }else{
+        } else {
             let attributeString = NSMutableAttributedString(string: String("\(header!)\n\(body!)"))
             let normalFont = notificationBar.body.font!
             let headerFont = UIFont.boldSystemFont(ofSize: normalFont.pointSize)
-            let headerLength = (header as NSString).length
+            let headerLength = (header! as NSString).length
             attributeString.addAttributes([NSFontAttributeName:headerFont], range: NSRange(location: 0, length: headerLength))
             attributeString.addAttributes([NSFontAttributeName:normalFont], range: NSRange(location: headerLength, length: (attributeString.string as NSString).length - headerLength))
             notificationBar.body.attributedText = attributeString
         }
-
-        var infoDic:Dictionary = Bundle.main.infoDictionary!
-        appName = infoDic["CFBundleName"] as? String
-        notificationBar.header.text = appName.uppercased()
         
-        if let icon = icon {
-            appIconName = ""
-            notificationBar.appIcon.image = icon
-            
-        } else if infoDic["CFBundleIcons"] != nil {
-            infoDic = infoDic["CFBundleIcons"] as! Dictionary
-            infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
-            appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
-            notificationBar.appIcon.image = UIImage(named: appIconName)
-            
+        notificationBar.header.text = appName
+        
+        if appIcon != nil {
+            notificationBar.appIconView.image = appIcon
         } else {
-            notificationBar.appIcon.layer.borderColor = UIColor.gray.cgColor
-            notificationBar.appIcon.layer.borderWidth = 1.0
-
-            appIconName = ""
-            print("Oops... no app icon found")
+            notificationBar.appIconView.layer.borderColor = UIColor.gray.cgColor
+            notificationBar.appIconView.layer.borderWidth = 1.0
         }
         
-        
-        notificationBar.appIcon.layer.cornerRadius = 5.0
-        notificationBar.appIcon.clipsToBounds = true
-        
+        notificationBar.appIconView.layer.cornerRadius = 5.0
+        notificationBar.appIconView.clipsToBounds = true
         
         notificationBar.visualEffectView.layer.cornerRadius = 14.0
         notificationBar.visualEffectView.clipsToBounds = true
@@ -302,25 +309,6 @@ open class GLNotificationBar: NSObject {
     
     fileprivate func setUpiOS9NotificationBar(_ body: String!, icon: UIImage? = nil) { // doesn't support a header string
         let legacyView = RNNotificationView()
-        
-        var infoDic:Dictionary = Bundle.main.infoDictionary!
-        appName = infoDic["CFBundleName"] as? String
-        
-        var appIcon: UIImage?
-        if let icon = icon {
-            appIconName = ""
-            appIcon = icon
-            
-        } else if infoDic["CFBundleIcons"] != nil {
-            infoDic = infoDic["CFBundleIcons"] as! Dictionary
-            infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
-            appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
-            appIcon = UIImage(named: appIconName)
-            
-        } else {
-            appIconName = ""
-            print("Oops... no app icon found")
-        }
         
         legacyView.show(withImage: appIcon, title: appName, message: body, onTap: { messageDidSelect(true) })
     }
@@ -367,7 +355,7 @@ class CustomView : UIView {
     @IBOutlet weak var header: UILabel!
     @IBOutlet weak var body: UILabel!
     @IBOutlet weak var visualEffectView: UIVisualEffectView!
-    @IBOutlet weak var appIcon: UIImageView!
+    @IBOutlet weak var appIconView: UIImageView!
     @IBOutlet weak var notificationStyleIndicator: UIView!
     
     //MARK: Variables:
@@ -462,7 +450,7 @@ class CustomView : UIView {
         //Message Title
         let title = UILabel()
         title.translatesAutoresizingMaskIntoConstraints = false
-        title.text = appName.uppercased()
+        title.text = appName
         title.backgroundColor = UIColor.clear
         title.textColor = UIColor.gray
         title.font = UIFont.systemFont(ofSize: 14)
@@ -499,18 +487,18 @@ class CustomView : UIView {
         detailedbanner .addSubview(seprator)
         
         //AppIcon
-        let appIcon = UIImageView()
-        if appIconName.characters.count != 0 {
-            appIcon.image = UIImage(named: appIconName)
+        let appIconView = UIImageView()
+        if appIcon != nil {
+            appIconView.image = appIcon
         }else{
-            appIcon.layer.borderColor = UIColor.gray.cgColor
-            appIcon.layer.borderWidth = 1.0
+            appIconView.layer.borderColor = UIColor.gray.cgColor
+            appIconView.layer.borderWidth = 1.0
         }
         
-        appIcon.layer.cornerRadius = 5.0
-        appIcon.clipsToBounds = true
-        appIcon.translatesAutoresizingMaskIntoConstraints = false
-        detailedbanner.addSubview(appIcon)
+        appIconView.layer.cornerRadius = 5.0
+        appIconView.clipsToBounds = true
+        appIconView.translatesAutoresizingMaskIntoConstraints = false
+        detailedbanner.addSubview(appIconView)
         
         //Close Button
         let closeButton = UIButton()
