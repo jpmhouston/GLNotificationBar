@@ -109,7 +109,7 @@ open class GLNotificationBar: NSObject {
      - Returns: A inilized GLNotificationBar object.
      */
     
-    @objc public init(title:String!, message :String!, preferredStyle:GLNotificationStyle, handler: ((Bool) -> Void)?) {
+    @objc public init(title:String!, message :String!, icon: UIImage? = nil, preferredStyle:GLNotificationStyle, handler: ((Bool) -> Void)?) {
         super.init()
         
         actionArray = [GLNotifyAction]()
@@ -117,10 +117,10 @@ open class GLNotificationBar: NSObject {
         if ((appKeyWindow?.subviews) == nil) {
             let time = DispatchTime.now() + Double(Int64(5.0 * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC)
             DispatchQueue.main.asyncAfter(deadline: time, execute: {
-                self.setUpNotificationBar(title, body: message , notificationStyle:preferredStyle)
+                self.setUpNotificationBar(title, body: message, icon: icon, notificationStyle:preferredStyle)
             })
         }else{
-            setUpNotificationBar(title, body: message , notificationStyle:preferredStyle)
+            setUpNotificationBar(title, body: message, icon: icon, notificationStyle:preferredStyle)
         }
 
         
@@ -209,7 +209,7 @@ open class GLNotificationBar: NSObject {
     }
     
     
-    fileprivate func setUpNotificationBar(_ header:String!, body:String!, notificationStyle:GLNotificationStyle) {
+    fileprivate func setUpNotificationBar(_ header:String!, body:String!, icon: UIImage? = nil, notificationStyle:GLNotificationStyle) {
         for subView in appKeyWindow?.subviews ?? [] {     //To clear old notification from queue
             if subView is CustomView || subView is RNNotificationView {
                 subView.removeFromSuperview()
@@ -223,7 +223,7 @@ open class GLNotificationBar: NSObject {
         }
     }
     
-    fileprivate func setUpiOS10NotificationBar(_ header:String!, _ body:String!, _ notificationStyle:GLNotificationStyle) {
+    fileprivate func setUpiOS10NotificationBar(_ header:String!, _ body:String!, icon: UIImage? = nil, _ notificationStyle:GLNotificationStyle) {
         notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: appKeyWindowSize.width, height: BAR_HEIGHT))
         notificationBar.translatesAutoresizingMaskIntoConstraints = false
         
@@ -252,7 +252,11 @@ open class GLNotificationBar: NSObject {
         appName = infoDic["CFBundleName"] as? String
         notificationBar.header.text = appName.uppercased()
         
-        if infoDic["CFBundleIcons"] != nil {
+        if let icon = icon {
+            appIconName = ""
+            notificationBar.appIcon.image = icon
+            
+        } else if infoDic["CFBundleIcons"] != nil {
             infoDic = infoDic["CFBundleIcons"] as! Dictionary
             infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
             appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
@@ -296,19 +300,23 @@ open class GLNotificationBar: NSObject {
         NSLayoutConstraint.activate(constraints)
     }
     
-    fileprivate func setUpiOS9NotificationBar(_ body:String!) { // doesn't support a header string
-        
+    fileprivate func setUpiOS9NotificationBar(_ body: String!, icon: UIImage? = nil) { // doesn't support a header string
         let legacyView = RNNotificationView()
         
         var infoDic:Dictionary = Bundle.main.infoDictionary!
         appName = infoDic["CFBundleName"] as? String
-        var appIcon: UIImage?
         
-        if infoDic["CFBundleIcons"] != nil {
+        var appIcon: UIImage?
+        if let icon = icon {
+            appIconName = ""
+            appIcon = icon
+            
+        } else if infoDic["CFBundleIcons"] != nil {
             infoDic = infoDic["CFBundleIcons"] as! Dictionary
             infoDic = infoDic["CFBundlePrimaryIcon"] as! Dictionary
             appIconName = (infoDic["CFBundleIconFiles"]! as AnyObject).object(at: 0) as! String
             appIcon = UIImage(named: appIconName)
+            
         } else {
             appIconName = ""
             print("Oops... no app icon found")
