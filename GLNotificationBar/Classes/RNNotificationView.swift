@@ -300,8 +300,15 @@ open class RNNotificationView: UIToolbar {
     
     @objc fileprivate func didTap(_ gesture: UIGestureRecognizer) {
         self.isUserInteractionEnabled = false
-        self.tapAction?()
-        self.hide(completion: nil)
+        //self.tapAction?()
+        //self.hide(completion: nil)
+        
+        //self.hide(completion: nil)
+        //if let block = self.tapAction {
+        //    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(1), execute: block)
+        //}
+        
+        self.hide(completion: self.tapAction)
     }
     
     @objc fileprivate func didPan(_ gesture: UIPanGestureRecognizer) {

@@ -219,7 +219,7 @@ open class GLNotificationBar: NSObject {
         if ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 10, minorVersion: 0, patchVersion: 0)) {
             setUpiOS10NotificationBar(header, body, notificationStyle)
         } else {
-            setUpiOS9StyleNotificationBar(body)
+            setUpiOS9NotificationBar(body)
         }
     }
     
@@ -296,7 +296,7 @@ open class GLNotificationBar: NSObject {
         NSLayoutConstraint.activate(constraints)
     }
     
-    fileprivate func setUpiOS9StyleNotificationBar(_ body:String!) { // doesn't support a header string
+    fileprivate func setUpiOS9NotificationBar(_ body:String!) { // doesn't support a header string
         
         let legacyView = RNNotificationView()
         
